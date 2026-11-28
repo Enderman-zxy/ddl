@@ -1,31 +1,44 @@
-#include <iostream>
-#include <fstream>
+#include <chrono>
 #include <cstdlib>
-#include <string>
 #include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <vector>
 
-std::filesystem::path dataDir() {
-  const char* home = std::getenv("HOME");
-  if (!home) home = std::getenv("USERPROFILE");
-  return std::filesystem::path(home) / ".ddl";
+#include "../include/ddlManager.h"
+
+/**
+ * @brief 检查第一个参数是否为add/list/done
+ * @param 第一个参数
+ * @return 是则返回true，否则返回false
+ */
+bool vertifyFirstParam(const std::string& s) {
+  if (s == "add" || s == "list" || s == "done") {
+    return true;
+  } else {
+    return false;
+  }
 }
-
-std::filesystem::path dataFile() {
-  std::filesystem::create_directories(dataDir());
-  return dataDir() / "data.tsv";
-}
-
-
 
 int main(int argc, char** argv) {
   if (argc < 2) {
     std::cout << "Usage: ddl <add|list|done>\n";
     return 1;
   }
-  std::cout << "todo: " << argv[1] << "\n";
-  std::ofstream out(dataFile(), std::ios::app);
-  out << "1\ttest\t2026-12-01\tLab\t0\n";
-  std::cout << "success\n";
-  
+  if (!vertifyFirstParam(argv[1])) {
+    std::cout << "Usage: ddl <add|list|done>\n";
+    return 1;
+  }
+  ddlManager manageer;
+  if (static_cast<std::string>(argv[1]) == "add") {
+    std::vector<std::string> strs;
+    for (int i = 2; i < argc; i++) {
+      strs.push_back(argv[i]);
+    }
+    manageer.addDDL(strs);
+  } else {
+    std::cout << (argv[1] == "add ") << "\n" << argv[1] << "\n";
+  }
   return 0;
 }
