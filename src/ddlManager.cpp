@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <map>
 
 namespace {
 /**
@@ -68,6 +69,12 @@ bool checkLine(const std::vector<std::string>& strs) {
   if (strs.size() != 5) {
     return false;
   }
+  std::string s_id = strs[0];
+  for (int i = 0; i < s_id.size(); i++) {
+    if (!(s_id[i] >= '0' && s_id[i] <= '9')) {
+      return false;
+    }
+  }
   std::string date = strs[2];
   if (!checkDate(date)) {
     return false;
@@ -76,14 +83,14 @@ bool checkLine(const std::vector<std::string>& strs) {
   if (done.size() != 1) {
     return false;
   }
-  if (!(done[0] >= '0' && done[0] <= '9')) {
+  if (!(done[0] >= '0' && done[0] <= '1')) {
     return false;
   }
   return true;
 }
 
 // 把数据分开
-std::vector<std::string> split_tsv(const std::string& line) {
+std::vector<std::string> splitTsv(const std::string& line) {
   std::vector<std::string> fields;
   size_t start = 0;
   while (true) {
@@ -195,30 +202,52 @@ bool ddlManager::checkFilePath(const std::string& path) {
 }
 
 /**
- * @brief 读取data.tsv
+ * @brief 读取data.tsv并检查id复用问题
  * @return 下一个加入的ddl的id
  */
-int ddlManager::loadFromFile(const std::string& path) {
+int ddlManager::loadFromFile(const std::string& path, bool &reused) {
   std::fstream tsv_data(path, std::ios::in);
   if (!tsv_data) return -1;
   std::string line;
-  int id = 1;
+  int next_id = 1;
   int line_number = 1;
+  std::map<int, std::vector<int>> reuse_checker;
   while (std::getline(tsv_data, line)) {
     if (!line.empty() && line.back() == '\r') {
       line.pop_back();
     }
     if (line.empty()) continue;
-    auto fields = split_tsv(line);
+    auto fields = splitTsv(line);
     if (checkLine(fields)) {
-      DDLs.push_back(DDL(fields[0], getNumberDate(fields[1])));
-      id++;
+      int id = std::stoi(fields[0]);
+      if (reuse_checker.find(id) != reuse_checker.end()) {
+        reuse_checker[id].push_back(line_number);
+      } else {
+        reuse_checker[id] = {line_number};
+      }
+      DDLs.push_back(DDL(id, fields[1], getNumberDate(fields[2])));
+      next_id++;
     } else {
       std::cout << "The line " << line_number << " is error. It is skipped.\n";
     }
     line_number++;
   }
-  return id;
+  for (const auto& c : reuse_checker) {
+    if (c.second.size() > 1) {
+      std::cout << "Warning: The " << c.first << "is reused in line ";
+      for (size_t i = 0; i < c.second.size(); i++) {
+        if (i != 0) std::cout << ", ";
+        std::cout << c.second[i];
+      }
+      std::cout << "\n";
+      reused = true;
+    }
+  }
+  if (reused == true) {
+    std::cout << "If you want to change the id, please change the file in "
+              << getFilePath() << " by yourself.\n";
+  }
+  return next_id;
 }
 
 FileStatus ddlManager::checkFileEnd(const std::string& path) {
@@ -280,11 +309,12 @@ AddStatus ddlManager::addDDL(const std::vector<std::string>& strs) {
   if (strs.size() == 3) {
     std::string path = static_cast<std::string>(getFilePath());
     int id = 1;
+    bool id_is_reused = false;
     if (!checkFilePath(path)) {
       std::cout << "data.tsv does not exist. It will be build automatically\n";
       std::filesystem::create_directory(path);
     } else {
-      id = loadFromFile(path);
+      id = loadFromFile(path, id_is_reused);
     }
     if (id == -1) {
       std::cout << "Fail to read file\n";
@@ -304,18 +334,20 @@ AddStatus ddlManager::addDDL(const std::vector<std::string>& strs) {
     if (checkExtra(option2, tag_title)) {
       std::string path = static_cast<std::string>(getFilePath());
       int id = 1;
+      bool id_is_reused = false;
       if (!checkFilePath(path)) {
         std::cout
             << "data.tsv does not exist. It will be build automatically\n";
-        std::filesystem::create_directories(static_cast<std::filesystem::path>(path).parent_path());
+        std::filesystem::create_directories(
+            static_cast<std::filesystem::path>(path).parent_path());
       } else {
-        id = loadFromFile(path);
+        id = loadFromFile(path, id_is_reused);
       }
       if (id == -1) {
         std::cout << "Fail to read file\n";
         return AddStatus::FAIL;
       }
-      if (!append(id, path, title, date, "Undetermined")) {
+      if (!append(id, path, title, date, tag_title)) {
         std::cout << "Fail to add the ddl in the file\n";
         return AddStatus::FAIL;
       }

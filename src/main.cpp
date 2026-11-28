@@ -22,23 +22,28 @@ bool vertifyFirstParam(const std::string& s) {
 }
 
 int main(int argc, char** argv) {
-  if (argc < 2) {
+  std::vector<std::string> args;
+  for (int i = 0; i < argc; i++) {
+    args.push_back(argv[i]);
+  }
+  if (args.size() < 2) {
     std::cout << "Usage: ddl <add|list|done>\n";
     return 1;
   }
-  if (!vertifyFirstParam(argv[1])) {
+  if (!vertifyFirstParam(args[1])) {
     std::cout << "Usage: ddl <add|list|done>\n";
     return 1;
   }
   ddlManager manageer;
-  if (static_cast<std::string>(argv[1]) == "add") {
+  if (args[1] == "add") {
     std::vector<std::string> strs;
-    for (int i = 2; i < argc; i++) {
-      strs.push_back(argv[i]);
+    for (int i = 2; i < args.size(); i++) {
+      strs.push_back(args[i]);
     }
     manageer.addDDL(strs);
-  } else {
-    std::cout << "Other commands haven't been finished...\n";
+  }
+  if (args[1] == "list") {
+    
   }
   return 0;
 }
