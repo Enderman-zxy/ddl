@@ -1,9 +1,11 @@
 #pragma once
 
+#include <filesystem>
 #include <string>
 #include <vector>
 
 enum class AddStatus { SUCCEED, FAIL };
+enum class FileStatus { EMPTY, NO, LF, CRLF };
 
 struct DDL {
   DDL() = delete;
@@ -21,8 +23,14 @@ struct DDL {
 class ddlManager {
  public:
   ddlManager() = default;
-  AddStatus addDDL(std::vector<std::string>& strs);
+  AddStatus addDDL(const std::vector<std::string>& strs);
 
  private:
   std::vector<DDL> DDLs;
+  std::filesystem::path getFilePath() const;
+  bool checkFilePath(const std::string& path);
+  int loadFromFile(const std::string& path);
+  bool append(const int id, const std::string& path, const std::string& title,
+              const std::string& date, const std::string& tag);
+  FileStatus checkFileEnd(const std::string& path);
 };

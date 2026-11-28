@@ -38,7 +38,7 @@ int main(int argc, char** argv) {
     }
     manageer.addDDL(strs);
   } else {
-    std::cout << (argv[1] == "add ") << "\n" << argv[1] << "\n";
+    std::cout << "Other commands haven't been finished...\n";
   }
   return 0;
 }
